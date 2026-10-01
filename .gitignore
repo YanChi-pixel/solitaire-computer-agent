@@ -22,9 +22,10 @@ __pycache__/
 venv/
 .ruff_cache/
 
-# Model checkpoints other than the published one
+# Model checkpoints and exports (the published model.pth is committed)
 *.pt
 *.ckpt
+*.onnx
 
 # Windows
 Thumbs.db

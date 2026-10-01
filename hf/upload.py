@@ -26,6 +26,7 @@ HF_DIR = REPO_ROOT / "hf"
 MODEL_NAME = "solitaire-card-recognizer"
 DATASET_NAME = "solitaire-cards-dataset"
 SPACE_NAME = "solitaire-card-recognizer-demo"
+SPACE_GRADIO_NAME = "solitaire-card-recognizer-gradio"
 
 DEFAULT_FULL_DATASET = REPO_ROOT / "dataset_full"
 FALLBACK_FULL_DATASET = REPO_ROOT.parent / "dataset_full"
@@ -116,16 +117,59 @@ def publish_dataset(api, token: str, namespace: str, full_dataset: Path) -> str:
 
 
 def publish_space(api, token: str, namespace: str, model_repo: str) -> str:
-    from huggingface_hub import create_repo, upload_folder
+    """Static Space: модель считается в браузере (ONNX Runtime Web).
+
+    Gradio/Docker Spaces на бесплатном cpu-basic требуют PRO-подписки, а
+    статические — бесплатны для всех и вдобавок не «засыпают».
+    """
+    from huggingface_hub import create_repo, upload_file, upload_folder
 
     repo_id = "%s/%s" % (namespace, SPACE_NAME)
+    create_repo(repo_id, repo_type="space", space_sdk="static", exist_ok=True, token=token)
+
+    stage_dir = HF_DIR / "space_static"
+    onnx_path = stage_dir / "model.onnx"
+    if not onnx_path.exists():
+        print("    ~ model.onnx не найден, экспортирую из model.pth…")
+        sys.path.insert(0, str(HF_DIR))
+        import export_onnx  # noqa: PLC0415
+
+        export_onnx.main()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        stage = Path(tmp)
+        shutil.copy2(stage_dir / "index.html", stage / "index.html")
+        shutil.copy2(stage_dir / "app.js", stage / "app.js")
+        shutil.copy2(stage_dir / "model.onnx", stage / "model.onnx")
+        shutil.copy2(REPO_ROOT / "vision" / "classes.json", stage / "classes.json")
+
+        card = (stage_dir / "README.md").read_text(encoding="utf-8")
+        (stage / "README.md").write_text(card.replace("YanChi-pixel", namespace),
+                                         encoding="utf-8")
+
+        examples = stage_dir / "examples"
+        if examples.is_dir():
+            shutil.copytree(examples, stage / "examples")
+
+        upload_folder(folder_path=str(stage), repo_id=repo_id,
+                      repo_type="space", token=token)
+
+    print("    + index.html, app.js, model.onnx, classes.json, examples/, README.md")
+    return repo_id
+
+
+def publish_space_gradio(api, token: str, namespace: str, model_repo: str) -> str:
+    """Необязательный Gradio-вариант: требует PRO-подписки HF (cpu-basic)."""
+    from huggingface_hub import create_repo, upload_file, upload_folder
+
+    repo_id = "%s/%s" % (namespace, SPACE_GRADIO_NAME)
     create_repo(repo_id, repo_type="space", space_sdk="gradio", exist_ok=True, token=token)
 
     with tempfile.TemporaryDirectory() as tmp:
         stage = Path(tmp)
         for name in ("app.py", "requirements.txt", "README.md"):
-            shutil.copy2(HF_DIR / "space" / name, stage / name)
-        examples = HF_DIR / "space" / "examples"
+            shutil.copy2(HF_DIR / "space_gradio" / name, stage / name)
+        examples = HF_DIR / "space_static" / "examples"
         if examples.is_dir():
             shutil.copytree(examples, stage / "examples")
 
@@ -164,9 +208,10 @@ def check_local(full_dataset: Path) -> list[str]:
         HF_DIR / "model" / "README.md",
         HF_DIR / "model" / "config.json",
         HF_DIR / "dataset" / "README.md",
-        HF_DIR / "space" / "app.py",
-        HF_DIR / "space" / "requirements.txt",
-        HF_DIR / "space" / "README.md",
+        HF_DIR / "space_static" / "index.html",
+        HF_DIR / "space_static" / "app.js",
+        HF_DIR / "space_static" / "README.md",
+        HF_DIR / "space_static" / "examples",
         REPO_ROOT / "dataset",
         REPO_ROOT / "tests" / "data",
     ]
@@ -181,7 +226,7 @@ def check_local(full_dataset: Path) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Публикация артефактов на Hugging Face Hub")
-    parser.add_argument("--what", choices=["model", "dataset", "space", "all"],
+    parser.add_argument("--what", choices=["model", "dataset", "space", "space-gradio", "all"],
                         default="all")
     parser.add_argument("--namespace", default=None,
                         help="аккаунт HF; по умолчанию берётся из токена")
@@ -253,14 +298,19 @@ def main() -> int:
 
     if args.what in ("space", "all"):
         model_repo = holder.get("model") or "%s/%s" % (namespace, MODEL_NAME)
-        print("\n[space] %s/%s" % (namespace, SPACE_NAME))
+        print("\n[space] %s/%s (static, инференс в браузере)" % (namespace, SPACE_NAME))
         links["space"] = publish_space(api, token, namespace, model_repo)
+
+    if args.what == "space-gradio":
+        model_repo = holder.get("model") or "%s/%s" % (namespace, MODEL_NAME)
+        print("\n[space-gradio] %s/%s (нужна PRO-подписка)" % (namespace, SPACE_GRADIO_NAME))
+        links["space-gradio"] = publish_space_gradio(api, token, namespace, model_repo)
 
     print("\nГотово:")
     for kind, repo_id in links.items():
         if kind == "dataset":
             print("  dataset: https://huggingface.co/datasets/%s" % repo_id)
-        elif kind == "space":
+        elif kind in ("space", "space-gradio"):
             print("  space:   https://huggingface.co/spaces/%s" % repo_id)
         else:
             print("  model:   https://huggingface.co/%s" % repo_id)

@@ -232,6 +232,29 @@ hf/             рецепты публикации модели, датасет
 чтобы не раздувать его: скрипты публикации — в `hf/`, а собрать свой такой же
 набор можно командой `scripts/collect_full.py`.
 
+## Hugging Face
+
+Слой зрения опубликован отдельным артефактом: веса скачиваются одной строкой,
+датасет доступен целиком, а демо открывается в браузере.
+
+| | |
+| --- | --- |
+| 🃏 **Распознаватель** | [huggingface.co/WildFuria/solitaire-card-recognizer](https://huggingface.co/WildFuria/solitaire-card-recognizer) — `model.pth`, `classes.json`, метрики и ограничения |
+| 📦 **Датасет** | [huggingface.co/datasets/WildFuria/solitaire-cards-dataset](https://huggingface.co/datasets/WildFuria/solitaire-cards-dataset) — 3254 полные карты + 3967 уголков + регресс-фикстуры |
+| 🚀 **Живое демо** | [huggingface.co/spaces/WildFuria/solitaire-card-recognizer-demo](https://huggingface.co/spaces/WildFuria/solitaire-card-recognizer-demo) — считает **прямо в браузере** через ONNX Runtime Web |
+
+```python
+from huggingface_hub import hf_hub_download
+
+weights = hf_hub_download("WildFuria/solitaire-card-recognizer", "model.pth")
+```
+
+Демо — это *статический* Space: `model.pth` экспортируется в ONNX скриптом
+`hf/export_onnx.py`, а инференс делает браузер, поэтому там нет сервера и нет
+холодного старта. Gradio/Docker Spaces на бесплатном `cpu-basic` требуют
+PRO-подписки, статические — бесплатны. Рецепты повторной публикации — в
+[`hf/`](hf/README.md).
+
 ## Ограничения и что осталось за кадром
 
 * **Перекрытые карты не читаются зрением** — это физика задачи, а не баг.

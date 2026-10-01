@@ -3,6 +3,8 @@
 [![CI](https://github.com/YanChi-pixel/solitaire-computer-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/YanChi-pixel/solitaire-computer-agent/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Model on Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Model-solitaire--card--recognizer-yellow)](https://huggingface.co/WildFuria/solitaire-card-recognizer)
+[![Demo on Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Demo-Space-green)](https://huggingface.co/spaces/WildFuria/solitaire-card-recognizer-demo)
 
 **An autonomous agent that plays Microsoft Solitaire Collection (Klondike)
 through the real screen and mouse.** No game API, no process-memory reading, no
@@ -247,9 +249,26 @@ and `scripts/collect_full.py` collects an equivalent set from your own screen.
 
 ## Hugging Face
 
-The model weights, the full dataset and a Gradio demo Space are prepared for
-Hugging Face Hub — see [`hf/README.md`](hf/README.md) for the cards and the
-one-command upload script.
+The vision layer is published as a standalone artefact — download the weights in
+one line, grab the dataset, or try the demo in a browser:
+
+| | |
+| --- | --- |
+| 🃏 **Recognizer** | [huggingface.co/WildFuria/solitaire-card-recognizer](https://huggingface.co/WildFuria/solitaire-card-recognizer) — `model.pth`, `classes.json`, metrics and limitations |
+| 📦 **Dataset** | [huggingface.co/datasets/WildFuria/solitaire-cards-dataset](https://huggingface.co/datasets/WildFuria/solitaire-cards-dataset) — 3254 full cards + 3967 corners + the regression fixtures |
+| 🚀 **Live demo** | [huggingface.co/spaces/WildFuria/solitaire-card-recognizer-demo](https://huggingface.co/spaces/WildFuria/solitaire-card-recognizer-demo) — runs **entirely in the browser** via ONNX Runtime Web |
+
+```python
+from huggingface_hub import hf_hub_download
+
+weights = hf_hub_download("WildFuria/solitaire-card-recognizer", "model.pth")
+```
+
+The demo is a *static* Space: `model.pth` is exported to ONNX with
+`hf/export_onnx.py` and the browser does the inference, so there is no server and
+no cold start. Gradio/Docker Spaces on the free `cpu-basic` tier require a PRO
+subscription; static ones are free. The recipes for republishing everything live
+in [`hf/`](hf/README.md).
 
 ## Limitations and what was deliberately left out
 
