@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -52,12 +53,24 @@ def get_api(token: str):
     return HfApi(token=token)
 
 
+def namespace_urls(text: str, namespace: str) -> str:
+    """Подставляет аккаунт HF только в ссылки Hugging Face.
+
+    Ссылки на GitHub (исходный код) трогать нельзя: там другой аккаунт.
+    """
+    return re.sub(
+        r"(huggingface\.co/(?:datasets/|spaces/)?)YanChi-pixel\b",
+        lambda match: match.group(1) + namespace,
+        text,
+    )
+
+
 def upload_readme(api, token: str, src: Path, repo_id: str, namespace: str,
                   repo_type: str = "model") -> None:
-    """Загружает карточку, подставляя в ссылки актуальный HF-аккаунт."""
+    """Загружает карточку, подставляя в HF-ссылки актуальный аккаунт."""
     from huggingface_hub import upload_file
 
-    text = src.read_text(encoding="utf-8").replace("YanChi-pixel", namespace)
+    text = namespace_urls(src.read_text(encoding="utf-8"), namespace)
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".md",
                                      delete=False) as handle:
         handle.write(text)
@@ -144,8 +157,8 @@ def publish_space(api, token: str, namespace: str, model_repo: str) -> str:
         shutil.copy2(REPO_ROOT / "vision" / "classes.json", stage / "classes.json")
 
         card = (stage_dir / "README.md").read_text(encoding="utf-8")
-        (stage / "README.md").write_text(card.replace("YanChi-pixel", namespace),
-                                         encoding="utf-8")
+        (stage / "README.md").write_text(namespace_urls(card, namespace),
+                                        encoding="utf-8")
 
         examples = stage_dir / "examples"
         if examples.is_dir():
@@ -179,9 +192,9 @@ def publish_space_gradio(api, token: str, namespace: str, model_repo: str) -> st
                           'MODEL_REPO = "%s"' % model_repo)
         (stage / "app.py").write_text(app, encoding="utf-8")
 
-        # ссылки внутри карточки Space — на актуальный аккаунт
+        # ссылки внутри карточки Space — на актуальный аккаунт HF
         card = (stage / "README.md").read_text(encoding="utf-8")
-        (stage / "README.md").write_text(card.replace("YanChi-pixel", namespace),
+        (stage / "README.md").write_text(namespace_urls(card, namespace),
                                          encoding="utf-8")
 
         upload_folder(folder_path=str(stage), repo_id=repo_id,
