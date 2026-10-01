@@ -131,6 +131,30 @@ def publish_space(api, token: str, namespace: str, model_repo: str) -> str:
     return repo_id
 
 
+def check_local(full_dataset: Path) -> list[str]:
+    """Проверяет, что все локальные файлы на месте (без обращения к сети)."""
+    problems = []
+    required = [
+        REPO_ROOT / "model.pth",
+        REPO_ROOT / "vision" / "classes.json",
+        HF_DIR / "model" / "README.md",
+        HF_DIR / "model" / "config.json",
+        HF_DIR / "dataset" / "README.md",
+        HF_DIR / "space" / "app.py",
+        HF_DIR / "space" / "requirements.txt",
+        HF_DIR / "space" / "README.md",
+        REPO_ROOT / "dataset",
+        REPO_ROOT / "tests" / "data",
+    ]
+    for path in required:
+        if not path.exists():
+            problems.append("нет файла или папки: %s" % path)
+
+    if not full_dataset.exists():
+        print("! полный датасет не найден (%s) — папка 'full' будет пропущена" % full_dataset)
+    return problems
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Публикация артефактов на Hugging Face Hub")
     parser.add_argument("--what", choices=["model", "dataset", "space", "all"],
@@ -139,7 +163,47 @@ def main() -> int:
                         help="аккаунт HF; по умолчанию берётся из токена")
     parser.add_argument("--full-dataset", default=None,
                         help="папка dataset_full с полными картами (для датасета)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="проверить локальные файлы и показать план, ничего не заливая")
     args = parser.parse_args()
+
+    full_dataset = Path(args.full_dataset) if args.full_dataset else (
+        DEFAULT_FULL_DATASET if DEFAULT_FULL_DATASET.exists() else FALLBACK_FULL_DATASET
+    )
+
+    if args.dry_run:
+        print("Проверка перед публикацией (токен не нужен, ничего не заливается)\n")
+        problems = check_local(full_dataset)
+        folders = [
+            ("model", REPO_ROOT / "model.pth"),
+            ("model", REPO_ROOT / "vision" / "classes.json"),
+            ("model", HF_DIR / "model" / "README.md"),
+            ("model", HF_DIR / "model" / "config.json"),
+            ("dataset", full_dataset),
+            ("dataset", REPO_ROOT / "dataset"),
+            ("dataset", REPO_ROOT / "tests" / "data"),
+            ("dataset", HF_DIR / "dataset" / "README.md"),
+            ("space", HF_DIR / "space"),
+        ]
+        print("Что будет загружено:")
+        for kind, path in folders:
+            if path.is_file():
+                print("  %-8s %-52s %8.1f КБ" % (kind, path.name, path.stat().st_size / 1024))
+            elif path.is_dir():
+                files = [f for f in path.rglob("*") if f.is_file()]
+                total = sum(f.stat().st_size for f in files)
+                print("  %-8s %-52s %6d файлов, %6.1f МБ"
+                      % (kind, path.name + "/", len(files), total / 1024 / 1024))
+            else:
+                print("  %-8s %-52s ОТСУТСТВУЕТ" % (kind, path.name))
+        print()
+        if problems:
+            print("ПРОБЛЕМЫ:")
+            for p in problems:
+                print("  " + p)
+            return 1
+        print("Всё на месте. Запустите без --dry-run, когда будет HF_TOKEN.")
+        return 0
 
     token = get_token()
     api = get_api(token)

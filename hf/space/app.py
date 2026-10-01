@@ -24,10 +24,14 @@ LOCAL_WEIGHTS = Path(__file__).parent / "model.pth"
 LOCAL_CLASSES = Path(__file__).parent / "classes.json"
 
 NOTE = (
-    "Feed it a **fully visible** card (a crop or a screenshot region). "
-    "Partially overlapped cards inside a fan are read unreliably — that is a "
+    "Feed it a **whole card**, as it appears on screen (the model was trained on "
+    "131×176 px cards). A tiny corner crop is out of distribution and will be "
+    "wrong. Partially overlapped cards inside a fan are read unreliably too — a "
     "documented data limitation, not a bug."
 )
+
+EXAMPLES_DIR = Path(__file__).parent / "examples"
+EXAMPLES = sorted(str(p) for p in EXAMPLES_DIR.glob("*.png")) if EXAMPLES_DIR.is_dir() else []
 
 
 def _load_classes() -> list[str]:
@@ -91,15 +95,15 @@ DEMO = gr.Interface(
     inputs=gr.Image(type="pil", label="Card image"),
     outputs=[
         gr.Label(num_top_classes=5, label="Top-5 predictions"),
-        gr.Markdown(label="Result"),
+        gr.Markdown(),
     ],
     title="Solitaire card recognizer",
     description=(
         "MobileNet v2 fine-tuned on 52 card classes (99.91 % accuracy on the "
         "training set, 100 % on the holdout split). " + NOTE
     ),
-    examples=[],
-    allow_flagging="never",
+    examples=[[p] for p in EXAMPLES],
+    cache_examples=False,
 )
 
 if __name__ == "__main__":

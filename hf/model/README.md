@@ -75,6 +75,10 @@ measured against those labels, not against a human-audited test set.
 
 ## Limitations
 
+* It expects a **whole card**, not a tiny corner crop. The older 42×54 corner
+  dataset (also published, folder `corners`) is out of distribution: a corner
+  crop fed to this model returns a wrong class with moderate confidence — the
+  corner pipeline was abandoned for exactly that reason.
 * Trained on the **Microsoft Solitaire Collection** card art at 1920×1040. Other
   card designs, fonts or resolutions are out of distribution.
 * It expects a **fully visible card**. A partially overlapped card inside a fan
