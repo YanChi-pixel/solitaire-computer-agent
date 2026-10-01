@@ -1,0 +1,10 @@
+# Runtime requirements for the agent itself (Windows).
+# The vision layer and the tests also need these.
+numpy>=1.26
+Pillow>=10.0
+mss>=9.0
+pywin32>=306; sys_platform == "win32"
+
+# Vision model: training and inference
+torch>=2.0
+torchvision>=0.15

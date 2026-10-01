@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff numpy Pillow mss
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Byte-compile
+        run: python -m compileall -q server.py play.py act vision orchestrator planner scripts tests
+
+      - name: Smoke import (portable layers)
+        run: |
+          python -c "import orchestrator.rule_engine, orchestrator.verify, orchestrator.loop_guard, orchestrator.quantity_guard, planner.prompts, planner.llm_planner, vision.calibration, vision.card_extraction, vision.screen_to_board, vision.recognizer; print('imports ok')"
+
+      - name: Rule engine and verification tests
+        run: |
+          python tests/test_rule_engine.py
+          python tests/test_verify.py
+
+      - name: Vision regression on real frames (8 checks, needs the trained model)
+        run: |
+          python tests/test_screen_to_board_real_frame.py

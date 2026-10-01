@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solitaire AI</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: #1e1e2e;
+            color: #e0e0e0;
+            max-width: 760px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+        h1 { color: #fff; font-size: 1.6em; margin-bottom: 4px; }
+        .subtitle { color: #9a9ab0; font-size: 0.9em; margin-top: 0; line-height: 1.5; }
+        button {
+            border: none;
+            padding: 12px 22px;
+            font-size: 1em;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 10px;
+            color: #fff;
+        }
+        #btn-move { background: #4caf50; }
+        #btn-move:hover { background: #43a047; }
+        #btn-auto { background: #2196f3; }
+        #btn-auto:hover { background: #1e88e5; }
+        #btn-stop { background: #e05050; }
+        #btn-stop:hover { background: #c94040; }
+        button:disabled { background: #666; cursor: default; }
+        .card {
+            background: #2a2a3e;
+            border: 1px solid #3a3a52;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        .label { color: #8ab4f8; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; }
+        #reasoning { white-space: pre-wrap; line-height: 1.5; }
+        #board {
+            white-space: pre-wrap;
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        #status { color: #f4b942; font-style: italic; margin-top: 12px; }
+        #model-name { color: #7ed37e; font-weight: bold; }
+        .win { color: #7ed37e; font-weight: bold; font-size: 1.1em; }
+    </style>
+</head>
+<body>
+    <h1>🃏 Solitaire AI</h1>
+    <p class="subtitle">
+        An AI that watches a real Klondike game on screen, recognizes the cards,
+        computes legal moves and plays them with the mouse. Layers: computer
+        vision (trained MobileNet) → rule engine → LLM strategist → mouse control.
+    </p>
+
+    <button id="btn-move" onclick="makeMove()">➡️ Make a move</button>
+    <button id="btn-auto" onclick="autoPlay()">▶️ Auto play</button>
+    <button id="btn-stop" class="stop" onclick="stopPlay()">⏹ Stop</button>
+    <button id="btn-shutdown" onclick="shutdownServer()" style="background:#6c63ff;">⏻ Stop server</button>
+
+    <div class="card">
+        <div class="label">Model</div>
+        <div>Strategist: <span id="model-name">—</span></div>
+        <div style="color:#9a9ab0; font-size:0.8em; margin-top:6px;">
+            To change the model or switch the LLM backend (local Ollama by
+            default, or a cloud API), edit the <code>.env</code> file in the
+            project folder.
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="label">Last action</div>
+        <div id="move"></div>
+    </div>
+
+    <div class="card">
+        <div class="label">Reasoning <span id="reasoning-count" style="color:#9a9ab0; text-transform:none; letter-spacing:0;"></span></div>
+        <details id="reasoning-box" open>
+            <summary>Reasoning log</summary>
+            <div id="reasoning">Press "Make a move" or "Auto play".</div>
+        </details>
+    </div>
+
+    <div class="card">
+        <div class="label">Table</div>
+        <div id="board"></div>
+    </div>
+
+    <div id="status"></div>
+
+    <script>
+        let autoRunning = false;
+        let moveCount = 0;
+        let reasoningLog = [];
+        let currentController = null;  // AbortController to cancel an in-flight request
+
+        async function makeMove() {
+            const status = document.getElementById("status");
+            status.textContent = "Thinking…";
+
+            try {
+                currentController = new AbortController();
+                const resp = await fetch("/move", {
+                    method: "POST",
+                    signal: currentController.signal,
+                });
+                let data = await resp.json();
+
+                // "Stopped." без хода — залипший stop-флаг с прошлой остановки
+                // (Stop/Stuck оставил флаг взведённым, а ручной ход не шлёт
+                // /start). Сбрасываем флаг и повторяем ход ОДИН раз.
+                if (data.reasoning === "Stopped." && !data.move) {
+                    await fetch("/start", { method: "POST" }).catch(() => {});
+                    const again = await fetch("/move", { method: "POST" });
+                    data = await again.json();
+                }
+
+                // Action = what physically happened. Distinguish a real move
+                // from "nothing changed" (stuck / no moves / stopped).
+                if (data.move) {
+                    document.getElementById("move").textContent = "🎯 " + data.move;
+                } else if (data.stuck) {
+                    document.getElementById("move").textContent = "⛔ Stuck";
+                } else {
+                    document.getElementById("move").textContent = "—";
+                }
+
+                // latest reasoning first (unshift to the top)
+                if (data.reasoning) {
+                    moveCount++;
+                    reasoningLog.unshift(`# Move ${moveCount} — ${data.move || "(no move)"}\n${data.reasoning}`);
+                    document.getElementById("reasoning").textContent = reasoningLog.join("\n\n———\n\n");
+                    document.getElementById("reasoning-count").textContent = `(${moveCount} moves)`;
+                }
+                if (data.model) {
+                    document.getElementById("model-name").textContent = data.model;
+                }
+                if (data.state) {
+                    document.getElementById("board").textContent = data.state;
+                }
+                if (data.won) {
+                    status.textContent = "🏆 Game won!";
+                    document.getElementById("status").className = "win";
+                    return true;
+                }
+                if (data.stuck) {
+                    status.textContent = "⛔ Stuck — same move repeated, stopping.";
+                    document.getElementById("status").className = "win";
+                    return true;
+                }
+                status.textContent = "";
+                return false;
+            } catch (e) {
+                if (e.name === "AbortError") {
+                    status.textContent = "Stopped.";
+                } else {
+                    status.textContent = "Error: " + e;
+                }
+                return false;
+            } finally {
+                currentController = null;
+            }
+        }
+
+        async function autoPlay() {
+            autoRunning = true;
+            // reset the server-side stop flag
+            fetch("/start", { method: "POST" }).catch(() => {});
+            document.getElementById("btn-auto").disabled = true;
+            document.getElementById("btn-stop").style.display = "";
+            try {
+                while (autoRunning) {
+                    const done = await makeMove();
+                    if (!autoRunning) break;   // stop pressed — exit immediately
+                    if (done) break;           // won or stuck — stop the loop
+                    await new Promise(r => setTimeout(r, 400));
+                }
+            } finally {
+                // always re-enable the button, even if a move threw an error
+                autoRunning = false;
+                document.getElementById("btn-auto").disabled = false;
+            }
+        }
+
+        function stopPlay() {
+            autoRunning = false;
+            // abort the in-flight request, if any
+            if (currentController) {
+                currentController.abort();
+            }
+            // also tell the server to stop applying further moves
+            fetch("/stop", { method: "POST" }).catch(() => {});
+            document.getElementById("status").textContent = "Stopped.";
+        }
+
+        async function shutdownServer() {
+            status = document.getElementById("status");
+            status.textContent = "Shutting down server…";
+            try {
+                await fetch("/shutdown", { method: "POST" });
+            } catch (e) {
+                // the server kills itself, so the fetch likely errors — that's fine
+            }
+            status.textContent = "Server stopped. You can close this tab and restart start.bat.";
+        }
+    </script>
+</body>
+</html>

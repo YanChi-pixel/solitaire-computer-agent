@@ -1,0 +1,31 @@
+# Secrets — never commit
+.env
+*.env
+!.env.example
+
+# Runtime artefacts
+move_log.log
+server_error.log
+*.npy
+_live_now.npy
+
+# Test artefacts
+dataset/synthetic_table.png
+dataset/_unlabeled/
+dataset_full/_unlabeled/
+dataset_full/_trash/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ruff_cache/
+
+# Model checkpoints other than the published one
+*.pt
+*.ckpt
+
+# Windows
+Thumbs.db
+desktop.ini

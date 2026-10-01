@@ -1,0 +1,17 @@
+{
+  "architecture": "mobilenet_v2",
+  "library": "torchvision",
+  "num_classes": 52,
+  "input_size": [224, 224],
+  "normalization": {
+    "mean": [0.485, 0.456, 0.406],
+    "std": [0.229, 0.224, 0.225]
+  },
+  "class_order": "classes.json — torchvision ImageFolder (alphabetical) folder order",
+  "trained_crop_px": [131, 176],
+  "accuracy_full_dataset": 0.9991,
+  "accuracy_holdout": 1.0,
+  "parameters": 2290484,
+  "inference_ms": {"pure": 6.7, "with_preprocessing": 8.1},
+  "source_repository": "https://github.com/YanChi-pixel/solitaire-computer-agent"
+}

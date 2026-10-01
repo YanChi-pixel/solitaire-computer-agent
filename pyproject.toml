@@ -1,0 +1,28 @@
+[project]
+name = "solitaire-computer-agent"
+version = "1.0.0"
+description = "Autonomous computer-use agent that plays Klondike through the real screen and mouse"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.26",
+    "Pillow>=10.0",
+    "mss>=9.0",
+    "pywin32>=306; sys_platform == 'win32'",
+    "torch>=2.0",
+    "torchvision>=0.15",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = ["dataset", "docs", "hf"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "FURB", "DTZ"]
+# E402: модули проекта запускаются и как скрипты (`python scripts/foo.py`),
+# поэтому почти в каждом файле есть bootstrap `sys.path.insert(...)` перед
+# импортами проекта — это осознанный паттерн, а не ошибка.
+# DTZ005/DTZ006: проект не работает с датами.
+ignore = ["E501", "E402", "DTZ005", "DTZ006"]
