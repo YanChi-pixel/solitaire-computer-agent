@@ -263,7 +263,10 @@ def main() -> int:
             ("dataset", REPO_ROOT / "dataset"),
             ("dataset", REPO_ROOT / "tests" / "data"),
             ("dataset", HF_DIR / "dataset" / "README.md"),
-            ("space", HF_DIR / "space"),
+            ("space", HF_DIR / "space_static" / "index.html"),
+            ("space", HF_DIR / "space_static" / "app.js"),
+            ("space", HF_DIR / "space_static" / "model.onnx"),
+            ("space", HF_DIR / "space_static" / "examples"),
         ]
         print("Что будет загружено:")
         for kind, path in folders:
