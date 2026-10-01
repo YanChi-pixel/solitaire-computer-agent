@@ -135,7 +135,7 @@ def publish_space(api, token: str, namespace: str, model_repo: str) -> str:
     Gradio/Docker Spaces на бесплатном cpu-basic требуют PRO-подписки, а
     статические — бесплатны для всех и вдобавок не «засыпают».
     """
-    from huggingface_hub import create_repo, upload_file, upload_folder
+    from huggingface_hub import create_repo, upload_folder
 
     repo_id = "%s/%s" % (namespace, SPACE_NAME)
     create_repo(repo_id, repo_type="space", space_sdk="static", exist_ok=True, token=token)
@@ -201,8 +201,6 @@ def publish_space_gradio(api, token: str, namespace: str, model_repo: str) -> st
                       repo_type="space", token=token)
 
     # приложить веса прямо к Space: демо не зависит от сети при старте
-    from huggingface_hub import upload_file
-
     upload_file(path_or_fileobj=str(REPO_ROOT / "model.pth"), path_in_repo="model.pth",
                 repo_id=repo_id, repo_type="space", token=token)
     upload_file(path_or_fileobj=str(REPO_ROOT / "vision" / "classes.json"),
