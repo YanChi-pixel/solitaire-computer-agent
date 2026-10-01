@@ -258,6 +258,11 @@ one line, grab the dataset, or try the demo in a browser:
 | 📦 **Dataset** | [huggingface.co/datasets/WildFuria/solitaire-cards-dataset](https://huggingface.co/datasets/WildFuria/solitaire-cards-dataset) — 3254 full cards + 3967 corners + the regression fixtures |
 | 🚀 **Live demo** | [huggingface.co/spaces/WildFuria/solitaire-card-recognizer-demo](https://huggingface.co/spaces/WildFuria/solitaire-card-recognizer-demo) — runs **entirely in the browser** via ONNX Runtime Web |
 
+![The demo recognising a king of spades in the browser](docs/img/space-demo.png)
+
+*The live demo, captured by a real browser run: the model answered `K♠` with 100%
+confidence and no console errors.*
+
 ```python
 from huggingface_hub import hf_hub_download
 
@@ -268,7 +273,9 @@ The demo is a *static* Space: `model.pth` is exported to ONNX with
 `hf/export_onnx.py` and the browser does the inference, so there is no server and
 no cold start. Gradio/Docker Spaces on the free `cpu-basic` tier require a PRO
 subscription; static ones are free. The recipes for republishing everything live
-in [`hf/`](hf/README.md).
+in [`hf/`](hf/README.md) — including the
+[profile README](https://huggingface.co/WildFuria/WildFuria) that ties the
+artefacts together.
 
 ## Limitations and what was deliberately left out
 

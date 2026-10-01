@@ -210,6 +210,22 @@ def publish_space_gradio(api, token: str, namespace: str, model_repo: str) -> st
     return repo_id
 
 
+def publish_profile(api, token: str, namespace: str) -> str:
+    """README-визитка профиля: репозиторий с именем самого аккаунта."""
+    from huggingface_hub import create_repo, upload_file
+
+    repo_id = "%s/%s" % (namespace, namespace)
+    create_repo(repo_id, repo_type="model", exist_ok=True, token=token)
+    upload_readme(api, token, HF_DIR / "profile" / "README.md", repo_id, namespace, "model")
+    print("    + README.md (визитка профиля)")
+    shot = REPO_ROOT / "docs" / "img" / "space-demo.png"
+    if shot.exists():
+        upload_file(path_or_fileobj=str(shot), path_in_repo="assets/space-demo.png",
+                    repo_id=repo_id, token=token)
+        print("    + assets/space-demo.png")
+    return repo_id
+
+
 def check_local(full_dataset: Path) -> list[str]:
     """Проверяет, что все локальные файлы на месте (без обращения к сети)."""
     problems = []
@@ -223,6 +239,7 @@ def check_local(full_dataset: Path) -> list[str]:
         HF_DIR / "space_static" / "app.js",
         HF_DIR / "space_static" / "README.md",
         HF_DIR / "space_static" / "examples",
+        HF_DIR / "profile" / "README.md",
         REPO_ROOT / "dataset",
         REPO_ROOT / "tests" / "data",
     ]
@@ -237,7 +254,8 @@ def check_local(full_dataset: Path) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Публикация артефактов на Hugging Face Hub")
-    parser.add_argument("--what", choices=["model", "dataset", "space", "space-gradio", "all"],
+    parser.add_argument("--what",
+                        choices=["model", "dataset", "space", "space-gradio", "profile", "all"],
                         default="all")
     parser.add_argument("--namespace", default=None,
                         help="аккаунт HF; по умолчанию берётся из токена")
@@ -320,12 +338,18 @@ def main() -> int:
         print("\n[space-gradio] %s/%s (нужна PRO-подписка)" % (namespace, SPACE_GRADIO_NAME))
         links["space-gradio"] = publish_space_gradio(api, token, namespace, model_repo)
 
+    if args.what in ("profile", "all"):
+        print("\n[profile] %s/%s (визитка профиля)" % (namespace, namespace))
+        links["profile"] = publish_profile(api, token, namespace)
+
     print("\nГотово:")
     for kind, repo_id in links.items():
         if kind == "dataset":
             print("  dataset: https://huggingface.co/datasets/%s" % repo_id)
         elif kind in ("space", "space-gradio"):
             print("  space:   https://huggingface.co/spaces/%s" % repo_id)
+        elif kind == "profile":
+            print("  profile: https://huggingface.co/%s" % repo_id)
         else:
             print("  model:   https://huggingface.co/%s" % repo_id)
     print("\nНе забудьте добавить эти ссылки в README.md (раздел «Hugging Face»).")

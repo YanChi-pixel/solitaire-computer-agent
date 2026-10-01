@@ -243,6 +243,11 @@ hf/             рецепты публикации модели, датасет
 | 📦 **Датасет** | [huggingface.co/datasets/WildFuria/solitaire-cards-dataset](https://huggingface.co/datasets/WildFuria/solitaire-cards-dataset) — 3254 полные карты + 3967 уголков + регресс-фикстуры |
 | 🚀 **Живое демо** | [huggingface.co/spaces/WildFuria/solitaire-card-recognizer-demo](https://huggingface.co/spaces/WildFuria/solitaire-card-recognizer-demo) — считает **прямо в браузере** через ONNX Runtime Web |
 
+![Демо распознаёт короля пик в браузере](docs/img/space-demo.png)
+
+*Живое демо, снятое реальным запуском браузера: модель ответила `K♠` с уверенностью
+100%, ошибок в консоли нет.*
+
 ```python
 from huggingface_hub import hf_hub_download
 
@@ -253,7 +258,9 @@ weights = hf_hub_download("WildFuria/solitaire-card-recognizer", "model.pth")
 `hf/export_onnx.py`, а инференс делает браузер, поэтому там нет сервера и нет
 холодного старта. Gradio/Docker Spaces на бесплатном `cpu-basic` требуют
 PRO-подписки, статические — бесплатны. Рецепты повторной публикации — в
-[`hf/`](hf/README.md).
+[`hf/`](hf/README.md), включая
+[визитку профиля](https://huggingface.co/WildFuria/WildFuria), которая связывает
+все артефакты вместе.
 
 ## Ограничения и что осталось за кадром
 
