@@ -51,6 +51,23 @@ def get_api(token: str):
     return HfApi(token=token)
 
 
+def upload_readme(api, token: str, src: Path, repo_id: str, namespace: str,
+                  repo_type: str = "model") -> None:
+    """Загружает карточку, подставляя в ссылки актуальный HF-аккаунт."""
+    from huggingface_hub import upload_file
+
+    text = src.read_text(encoding="utf-8").replace("YanChi-pixel", namespace)
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".md",
+                                     delete=False) as handle:
+        handle.write(text)
+        tmp_path = handle.name
+    try:
+        upload_file(path_or_fileobj=tmp_path, path_in_repo="README.md",
+                    repo_id=repo_id, repo_type=repo_type, token=token)
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+
+
 def publish_model(api, token: str, namespace: str, repo_id_holder: dict) -> str:
     from huggingface_hub import create_repo, upload_file
 
@@ -59,7 +76,6 @@ def publish_model(api, token: str, namespace: str, repo_id_holder: dict) -> str:
     for local, remote in (
         (REPO_ROOT / "model.pth", "model.pth"),
         (REPO_ROOT / "vision" / "classes.json", "classes.json"),
-        (HF_DIR / "model" / "README.md", "README.md"),
         (HF_DIR / "model" / "config.json", "config.json"),
     ):
         if not local.exists():
@@ -67,12 +83,14 @@ def publish_model(api, token: str, namespace: str, repo_id_holder: dict) -> str:
         upload_file(path_or_fileobj=str(local), path_in_repo=remote,
                     repo_id=repo_id, token=token)
         print("    + %s" % remote)
+    upload_readme(api, token, HF_DIR / "model" / "README.md", repo_id, namespace, "model")
+    print("    + README.md (карточка модели)")
     repo_id_holder["model"] = repo_id
     return repo_id
 
 
 def publish_dataset(api, token: str, namespace: str, full_dataset: Path) -> str:
-    from huggingface_hub import create_repo, upload_file, upload_folder
+    from huggingface_hub import create_repo, upload_folder
 
     repo_id = "%s/%s" % (namespace, DATASET_NAME)
     create_repo(repo_id, repo_type="dataset", exist_ok=True, token=token)
@@ -92,10 +110,8 @@ def publish_dataset(api, token: str, namespace: str, full_dataset: Path) -> str:
                       repo_id=repo_id, repo_type="dataset", token=token,
                       ignore_patterns=["_unlabeled/*", "_trash/*", "synthetic_table.png"])
 
-    upload_file(path_or_fileobj=str(HF_DIR / "dataset" / "README.md"),
-                path_in_repo="README.md", repo_id=repo_id,
-                repo_type="dataset", token=token)
-    print("    + README.md")
+    upload_readme(api, token, HF_DIR / "dataset" / "README.md", repo_id, namespace, "dataset")
+    print("    + README.md (карточка датасета)")
     return repo_id
 
 
@@ -109,12 +125,20 @@ def publish_space(api, token: str, namespace: str, model_repo: str) -> str:
         stage = Path(tmp)
         for name in ("app.py", "requirements.txt", "README.md"):
             shutil.copy2(HF_DIR / "space" / name, stage / name)
+        examples = HF_DIR / "space" / "examples"
+        if examples.is_dir():
+            shutil.copytree(examples, stage / "examples")
 
-        # Space должен скачивать модель из опубликованного репозитория
+        # Space должен брать модель из опубликованного репозитория
         app = (stage / "app.py").read_text(encoding="utf-8")
         app = app.replace('MODEL_REPO = "YanChi-pixel/solitaire-card-recognizer"',
                           'MODEL_REPO = "%s"' % model_repo)
         (stage / "app.py").write_text(app, encoding="utf-8")
+
+        # ссылки внутри карточки Space — на актуальный аккаунт
+        card = (stage / "README.md").read_text(encoding="utf-8")
+        (stage / "README.md").write_text(card.replace("YanChi-pixel", namespace),
+                                         encoding="utf-8")
 
         upload_folder(folder_path=str(stage), repo_id=repo_id,
                       repo_type="space", token=token)
