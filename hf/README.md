@@ -9,6 +9,8 @@ Hub — то, что неудобно (и не нужно) держать в git
 | **Model** | `solitaire-card-recognizer` | `model.pth` (9,4 МБ), `vision/classes.json`, `config.json`, карточка `hf/model/` |
 | **Dataset** | `solitaire-cards-dataset` | `dataset_full/` (3254 полные карты) + `dataset/` (3967 уголков) + `tests/data/` (3 реальных кадра с эталоном) |
 | **Space** (static) | `solitaire-card-recognizer-demo` | `hf/space_static/`: `index.html`, `app.js`, `model.onnx`, примеры карт |
+| **Collection** | `Computer-use agent: Klondike` | связывает модель, датасет и Space — это и есть «витрина» на странице профиля |
+| **Profile README** | `WildFuria/WildFuria` | `hf/profile/README.md` — карточка-портфолио со ссылками |
 
 ## Зачем это вообще нужно
 
@@ -22,6 +24,39 @@ Hugging Face отвечает на другой вопрос — «чем эти
 * **датасет с карточкой** — что данные описаны и воспроизводимы;
 * **Space** — что результат запускается у любого в браузере; именно эту ссылку
   обычно и просят.
+
+## Профиль: что реально видно на странице аккаунта
+
+Проверено живым браузером, поэтому без иллюзий:
+
+* **Collection** — штатная «витрина». Модель, датасет и Space собираются в один
+  сборник, и он показывается на странице профиля. Заливается командой
+  `python hf/upload.py --what collection` (повторный запуск не дублирует).
+* **Репозитории** — модель, датасет и Space перечисляются на профиле сами.
+* **README-визитка** (`WildFuria/WildFuria`) — рендерится как обычная страница
+  репозитория, но **сам профиль её не показывает**: в документации Hub такого
+  механизма сейчас нет, и у популярных аккаунтов профиль тоже состоит только из
+  био и списков. Репозиторий оставлен как карточка-портфолио: ссылку на него можно
+  дать в био или в LinkedIn.
+* **Био** задаётся только руками: `Settings → Profile → Bio`. Готовый текст:
+
+  > AI automation engineer. I build pipelines where LLMs meet real systems: CMS
+  > platforms without APIs, UI automation, computer vision. Python, PyTorch, ONNX.
+  > Agent + model + dataset + demo: huggingface.co/WildFuria
+
+## Проверка демо
+
+`hf/verify_space.py` открывает опубликованный Space настоящим браузером
+(Playwright + Chromium), ждёт загрузку ONNX-модели, кликает пример карты, читает
+предсказание из DOM, собирает ошибки консоли и при желании делает скриншот:
+
+```bash
+pip install playwright && python -m playwright install chromium
+python hf/verify_space.py --shot docs/img/space-demo.png
+```
+
+Так и был снят скриншот для README: модель ответила `K♠` со 100% уверенности,
+ошибок в консоли — ноль.
 
 ## Почему Space статический, а не Gradio
 
@@ -53,6 +88,8 @@ export HF_TOKEN=hf_...            # Windows: set HF_TOKEN=hf_...
 python hf/upload.py --what model
 python hf/upload.py --what dataset --full-dataset "D:\AI Projects\sol-dev\dataset_full"
 python hf/upload.py --what space
+python hf/upload.py --what profile       # карточка-портфолио WildFuria/WildFuria
+python hf/upload.py --what collection    # сборник: модель + датасет + Space
 # или всё сразу:
 python hf/upload.py --what all --full-dataset "D:\AI Projects\sol-dev\dataset_full"
 ```
@@ -72,10 +109,12 @@ python hf/upload.py --dry-run --full-dataset "D:\AI Projects\sol-dev\dataset_ful
 ```
 hf/
 ├── README.md            этот файл
-├── upload.py            публикация всего (--what model|dataset|space|all)
+├── upload.py            публикация всего (--what model|dataset|space|profile|collection|all)
 ├── export_onnx.py       model.pth → model.onnx для демо в браузере
+├── verify_space.py      проверка опубликованного Space живым браузером + скриншот
 ├── model/               карточка модели + config.json
 ├── dataset/             карточка датасета (три конфигурации: full, corners, fixtures)
+├── profile/             README-визитка профиля (репозиторий с именем аккаунта)
 ├── space_static/        static Space: index.html, app.js, примеры карт
 └── space_gradio/        альтернативный Gradio Space (нужна PRO-подписка)
 ```

@@ -29,6 +29,13 @@ DATASET_NAME = "solitaire-cards-dataset"
 SPACE_NAME = "solitaire-card-recognizer-demo"
 SPACE_GRADIO_NAME = "solitaire-card-recognizer-gradio"
 
+COLLECTION_TITLE = "Computer-use agent: Klondike"
+# Внимание: HF ограничивает описание коллекции 150 символами.
+COLLECTION_DESCRIPTION = (
+    "Autonomous agent that plays Klondike through the real screen and mouse: "
+    "vision, rule engine, LLM planner, WinAPI input, verification."
+)
+
 DEFAULT_FULL_DATASET = REPO_ROOT / "dataset_full"
 FALLBACK_FULL_DATASET = REPO_ROOT.parent / "dataset_full"
 
@@ -210,6 +217,30 @@ def publish_space_gradio(api, token: str, namespace: str, model_repo: str) -> st
     return repo_id
 
 
+def publish_collection(api, token: str, namespace: str) -> str:
+    """Коллекция — то, что реально показывается на странице профиля HF."""
+    collection = api.create_collection(
+        title=COLLECTION_TITLE,
+        namespace=namespace,
+        description=COLLECTION_DESCRIPTION,
+        private=False,
+        exists_ok=True,
+    )
+    items = [
+        ("%s/%s" % (namespace, MODEL_NAME), "model"),
+        ("%s/%s" % (namespace, DATASET_NAME), "dataset"),
+        ("%s/%s" % (namespace, SPACE_NAME), "space"),
+    ]
+    for item_id, item_type in items:
+        try:
+            api.add_collection_item(collection_slug=collection.slug, item_id=item_id,
+                                    item_type=item_type, exists_ok=True)
+            print("    + %-8s %s" % (item_type, item_id))
+        except Exception as error:  # noqa: BLE001
+            print("    ! %-8s %s — %s" % (item_type, item_id, str(error)[:100]))
+    return collection.slug
+
+
 def publish_profile(api, token: str, namespace: str) -> str:
     """README-визитка профиля: репозиторий с именем самого аккаунта."""
     from huggingface_hub import create_repo, upload_file
@@ -255,7 +286,8 @@ def check_local(full_dataset: Path) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Публикация артефактов на Hugging Face Hub")
     parser.add_argument("--what",
-                        choices=["model", "dataset", "space", "space-gradio", "profile", "all"],
+                        choices=["model", "dataset", "space", "space-gradio",
+                                 "profile", "collection", "all"],
                         default="all")
     parser.add_argument("--namespace", default=None,
                         help="аккаунт HF; по умолчанию берётся из токена")
@@ -342,6 +374,10 @@ def main() -> int:
         print("\n[profile] %s/%s (визитка профиля)" % (namespace, namespace))
         links["profile"] = publish_profile(api, token, namespace)
 
+    if args.what in ("collection", "all"):
+        print("\n[collection] %s" % COLLECTION_TITLE)
+        links["collection"] = publish_collection(api, token, namespace)
+
     print("\nГотово:")
     for kind, repo_id in links.items():
         if kind == "dataset":
@@ -350,6 +386,8 @@ def main() -> int:
             print("  space:   https://huggingface.co/spaces/%s" % repo_id)
         elif kind == "profile":
             print("  profile: https://huggingface.co/%s" % repo_id)
+        elif kind == "collection":
+            print("  сборник: https://huggingface.co/collections/%s" % repo_id)
         else:
             print("  model:   https://huggingface.co/%s" % repo_id)
     print("\nНе забудьте добавить эти ссылки в README.md (раздел «Hugging Face»).")
